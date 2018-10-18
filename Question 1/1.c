@@ -80,29 +80,33 @@ void * meetOrganiser(void * args)
 
 void * enterCourt(void * args)
 {
+	/*Employs busy waiting where a person is waiting to enter the court.*/
 	Person * ptr = (Person *)args;
 	char type = ptr -> type;
 	int id = ptr -> id;
 	if(type == 'R'){
 		while(state_referee[id] == 0);
+		/*This state change is done by the organiser in assign().*/
 	}
 	else{
 		while(state_player[id] == 0);
+		/*This state change is done by the organiser in assign().*/
 	}
 }
-
+/*This function handles the operations when the referee is adjusting Equipments before match start.*/
 void * adjustEquipment(void * args)
 {
 	sleep(0.5);
 	printf("Equipment being adjusted by referee %d\n", ((Person *)args) -> id);
 }
-
+/*Players warmup before match by calling this function.*/
 void * warmUp(void * args)
 {
 	sleep(1);
 	printf("Warm up by player %d\n", ((Person *)args) -> id);
 }
 
+/*Referee starts match by calling this function.*/
 void * gameStart(void * args)
 {
 	printf("Player %d VS Player %d , Match Referee: Referee %d started.\n", court_player[0], court_player[1], court_referee);
@@ -114,12 +118,15 @@ void *person(void * args)
 	int id = ((Person *)args) -> id;
 	Person p1;
 	p1.type = type; p1.id = id;
+	/*Player enters the academy by calling enterAcademy()*/
 	enterAcademy(&p1);
 	Person p2;
 	p2.type = type; p2.id = id;
+	/*Player meets organiser by calling meetOrganiser().*/
 	meetOrganiser(&p2);
 	Person p3;
 	p3.type = type; p3.id = id;
+	/*Player enters court by calling enterCourt().*/
 	enterCourt(&p3);
 	pthread_mutex_lock(&court_entry);
 	if(type == 'R'){
@@ -169,7 +176,7 @@ void *person(void * args)
 
 void * assign(void * args)
 {
-	while(true)
+	while(1)
 	{
 		pthread_mutex_lock(&organiser);
 		int ready_players = 0;
@@ -215,16 +222,19 @@ pthread_t referee_threads[MAXN];
 
 int main()
 {
-	/*Initialize mutexes*/
+	
 	pthread_t thread;
+	//This thread runs constantly checking whether a group can be formed by the organiser or not when he is free.
 	pthread_create(&thread, NULL, assign, NULL);
 	for(int i = 0; i < 2 * MAXN; ++i)
 		state_player[i] = -2;
 	for(int i = 0; i < MAXN; i++)
 		state_referee[i] = -2;
+	/*Initialize mutexes so that entry into academy, meeting the organiser and entering the court is synchronized.*/
 	pthread_mutex_init(&entry, NULL);
 	pthread_mutex_init(&organiser, NULL);
 	pthread_mutex_init(&court_entry, NULL);
+	
 	printf("Enter N.\n");
 	scanf("%d", &N);
 	int c = (2 * N) + N;
@@ -238,7 +248,7 @@ int main()
 		for(int i = 0; i < rem_r; i++)
 			tmp[i] = 1;
 		int pos = rand() % (rem_r + rem_p);
-		
+		/*Randomly generating a new person entering the academy according to probability mentioned.*/
 		if(tmp[pos] == 1){
 			r++;
 			Person ref;
@@ -253,11 +263,13 @@ int main()
 			pl.type = 'P';
 			pthread_create(&player_threads[p - 1], NULL, person, (void *)&pl);	
 		}
+		/*Randmoly waiting for 1,2 or 3 seconds before next person arrives.*/
 		sleep(rand() % 3);
 		sleep(1);
 	}
+	/*Waiting for all threads to complete*/
 	for(int i = 0; i < N; i++)
-    	pthread_join(referee_threads[i], NULL);
+		pthread_join(referee_threads[i], NULL);
     for(int i = 0; i < 2 * N; i++)
     	pthread_join(player_threads[i], NULL);
     printf("Done!\n");
