@@ -210,9 +210,9 @@ void * assign(void * args)
 				f++;
 			}
 		}
-		pthread_mutex_unlock(&REF);
-		pthread_mutex_unlock(&PLAYER[1]);
-		pthread_mutex_unlock(&PLAYER[0]);
+		//pthread_mutex_unlock(&REF);
+		//pthread_mutex_unlock(&PLAYER[1]);
+		//pthread_mutex_unlock(&PLAYER[0]);
 		//pthread_mutex_unlock(&organiser);
 	}
 }
