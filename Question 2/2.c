@@ -75,6 +75,7 @@ void voter_in_slot(booth * booth_ptr)
 
 /*This mutex ensures that at a time only one evm selects voters in a booth.*/
 pthread_mutex_t mutex[MAXN];// = PTHREAD_MUTEX_INITIALIZER;
+int evm_cnt[MAXN][MAXN];
 
 void * EVM(void * args)
 {
@@ -85,6 +86,7 @@ void * EVM(void * args)
 	{
 
 		pthread_mutex_lock(&mutex[evm_booth]);
+		evm_cnt[evm_booth][evm_id]= 0;
 		/*When an evm is free, it signals few voters depending on the number of slots it has.*/
 		/*This signalling is done by only one EVM in a booth*/
 		/*That is why the mutex mutex[evm_booth]*/
@@ -95,7 +97,13 @@ void * EVM(void * args)
 		p -> id = evm_booth;
 		p -> voters = booths[evm_booth] -> voters;	
 		polling_ready_evm(p, random);
+		
 		pthread_mutex_unlock(&mutex[evm_booth]);
+
+
+		if(evm_cnt[evm_booth][evm_id] == 0)
+			break;
+
 		printf("EVM %d at Booth %d is moving for voting stage.\n", evm_id, evm_booth);
 		printf("EVM %d at Booth %d finished voting stage.\n", evm_id, evm_booth);
 		
@@ -117,7 +125,7 @@ void * Voter(void * args)
 	p -> voters = booths[voter_booth] -> voters;
 	/*Voter waiting for an EVM to be allocated.*/
 	voter_wait_for_evm(p);
-	
+	evm_cnt[voter_booth][evm_no[voter_booth]]++;
 	printf("Voter %d at Booth %d got allocated to EVM %d\n", voter_id, voter_booth, evm_no[voter_booth]);
 
 	booth * q = (booth *)malloc(sizeof(booth));
@@ -138,8 +146,7 @@ void * booth_open(void * args)
 		t -> booth_id = id;
 		pthread_create(&evm_threads[id][i], NULL, EVM, t);
 		/*Give some delay while creating new EVMs*/
-		sleep(0.01);
-
+		sleep(0.1);
 	}
 	for(int i = 1; i <= booths[id] -> evms; ++i)
 		pthread_join(evm_threads[id][i], NULL);
