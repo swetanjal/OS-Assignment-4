@@ -50,6 +50,7 @@ void polling_ready_evm(booth * booth_ptr, int cnt)
 		pthread_cond_signal(&cond[booth_ptr -> id]);
 	}
 	pthread_mutex_unlock(&booth_voter_mutex[booth_ptr -> id]);
+	//Delay of 1 s given for the voters to move to their respective slots.
 	sleep(1);
 }
 
@@ -66,7 +67,7 @@ pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 void voter_in_slot(booth * booth_ptr)
 {
 	/*Voter votes.*/
-	sleep(0.01);
+	//sleep(0.01);
 	/*This mutex lock ensures that at a time only one voter in a booth says I am done with voting to avoid race conditions.*/
 	pthread_mutex_lock(&booth_voter_mutex[booth_ptr -> id]);
 	booths[booth_ptr -> id] -> voters--;
@@ -76,7 +77,7 @@ void voter_in_slot(booth * booth_ptr)
 /*This mutex ensures that at a time only one evm selects voters in a booth.*/
 pthread_mutex_t mutex[MAXN];// = PTHREAD_MUTEX_INITIALIZER;
 int evm_cnt[MAXN][MAXN];
-
+pthread_mutex_t evm_mutex[MAXN][MAXN];
 void * EVM(void * args)
 {
 	evm * ptr = (evm *)args;
@@ -125,9 +126,12 @@ void * Voter(void * args)
 	p -> voters = booths[voter_booth] -> voters;
 	/*Voter waiting for an EVM to be allocated.*/
 	voter_wait_for_evm(p);
+	
+	pthread_mutex_lock(&evm_mutex[voter_booth][evm_no[voter_booth]]);
 	evm_cnt[voter_booth][evm_no[voter_booth]]++;
 	printf("Voter %d at Booth %d got allocated to EVM %d\n", voter_id, voter_booth, evm_no[voter_booth]);
-
+	pthread_mutex_unlock(&evm_mutex[voter_booth][evm_no[voter_booth]]);
+	
 	booth * q = (booth *)malloc(sizeof(booth));
 	q -> id = voter_booth;
 	q -> voters = booths[voter_booth] -> voters;
@@ -163,6 +167,8 @@ int main()
 	for(int i = 1; i <= N; i++){
 		pthread_mutex_init(&booth_voter_mutex[i], NULL);
 		pthread_mutex_init(&mutex[i] ,NULL);
+		for(int j = 1; j < MAXN; j++)
+			pthread_mutex_init(&evm_mutex[i][j] ,NULL);
 	}
 
 	/*Create voter threads for each booth*/
@@ -173,6 +179,7 @@ int main()
 			v -> id = j;
 			v -> booth_id = i;
 			pthread_create(&voter_threads[i][j], NULL, Voter, v);
+			sleep(0.1);
 		}
 	}
 	/*Create booth threads for each booth*/
@@ -180,6 +187,7 @@ int main()
 		int * ptr = (int *)malloc(sizeof(int));
 		*ptr = i;
 		pthread_create(&booth_threads[i], NULL, booth_open, ptr);
+		sleep(0.1);
 	}
 
 	/*Wait for all voters to complete voting.*/

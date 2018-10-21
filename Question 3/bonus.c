@@ -1,7 +1,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define MAXN 10000
+#define MAXN 1000000
 typedef struct element{
 	int l;
 	int r;
